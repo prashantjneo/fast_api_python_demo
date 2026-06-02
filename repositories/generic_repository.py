@@ -1,53 +1,50 @@
-from typing import List, Dict, Optional, Any
-from database.dummy_db import db
+from typing import List, Optional, Any, TypeVar, Generic, Type
+from sqlalchemy.orm import Session
 
-class GenericRepository:
-    """
-    A generic repository for basic CRUD operations on a mock database.
-    """
-    def __init__(self, table_name: str):
-        self.table_name = table_name
-        # Ensure the table exists in our mock DB
-        if self.table_name not in db:
-            db[self.table_name] = []
+ModelType = TypeVar("ModelType")
 
-    def get_all(self) -> List[Dict[str, Any]]:
+class GenericRepository(Generic[ModelType]):
+    """
+    A generic repository for basic CRUD operations using SQLAlchemy.
+    """
+    def __init__(self, model: Type[ModelType]):
+        self.model = model
+
+    def get_all(self, db: Session) -> List[ModelType]:
         """Retrieve all records from the table."""
-        return db.get(self.table_name, [])
+        return db.query(self.model).all()
 
-    def get_by_id(self, item_id: int) -> Optional[Dict[str, Any]]:
+    def get_by_id(self, db: Session, item_id: int) -> Optional[ModelType]:
         """Retrieve a specific record by its ID."""
-        items = db.get(self.table_name, [])
-        for item in items:
-            if item.get("id") == item_id:
-                return item
-        return None
+        return db.query(self.model).filter(self.model.id == item_id).first()
 
-    def create(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def create(self, db: Session, data: dict) -> ModelType:
         """Create a new record in the table."""
-        items = db.get(self.table_name, [])
-        # Auto-increment ID based on the max existing ID
-        new_id = max([item.get("id", 0) for item in items], default=0) + 1
-        data["id"] = new_id
-        items.append(data)
-        return data
+        db_obj = self.model(**data)
+        db.add(db_obj)
+        db.commit()
+        db.refresh(db_obj)
+        return db_obj
 
-    def update(self, item_id: int, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def update(self, db: Session, item_id: int, data: dict) -> Optional[ModelType]:
         """Update an existing record in the table by its ID."""
-        items = db.get(self.table_name, [])
-        for index, item in enumerate(items):
-            if item.get("id") == item_id:
-                # Merge existing item data with new data
-                updated_item = {**item, **data, "id": item_id}
-                items[index] = updated_item
-                return updated_item
-        return None
+        db_obj = self.get_by_id(db, item_id)
+        if not db_obj:
+            return None
+            
+        for key, value in data.items():
+            setattr(db_obj, key, value)
+            
+        db.commit()
+        db.refresh(db_obj)
+        return db_obj
 
-    def delete(self, item_id: int) -> bool:
+    def delete(self, db: Session, item_id: int) -> bool:
         """Delete a record from the table by its ID."""
-        items = db.get(self.table_name, [])
-        for index, item in enumerate(items):
-            if item.get("id") == item_id:
-                items.pop(index)
-                return True
-        return False
+        db_obj = self.get_by_id(db, item_id)
+        if not db_obj:
+            return False
+            
+        db.delete(db_obj)
+        db.commit()
+        return True

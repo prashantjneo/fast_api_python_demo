@@ -1,23 +1,25 @@
+from sqlalchemy.orm import Session
+from models.user import User
 from repositories.generic_repository import GenericRepository
 from schemas.user_schema import UserCreate, UserUpdate
-from typing import List, Dict, Optional, Any
+from typing import List, Optional
 
-# Instantiate the generic repository for the "users" table
-user_repo = GenericRepository(table_name="users")
+# Instantiate the generic repository with the User model
+user_repo = GenericRepository(model=User)
 
-def get_all_users() -> List[Dict[str, Any]]:
-    return user_repo.get_all()
+def get_all_users(db: Session) -> List[User]:
+    return user_repo.get_all(db)
 
-def get_user_by_id(user_id: int) -> Optional[Dict[str, Any]]:
-    return user_repo.get_by_id(user_id)
+def get_user_by_id(db: Session, user_id: int) -> Optional[User]:
+    return user_repo.get_by_id(db, user_id)
 
-def create_user(user_data: UserCreate) -> Dict[str, Any]:
-    return user_repo.create(user_data.model_dump())
+def create_user(db: Session, user_data: UserCreate) -> User:
+    return user_repo.create(db, user_data.model_dump())
 
-def update_user(user_id: int, user_data: UserUpdate) -> Optional[Dict[str, Any]]:
+def update_user(db: Session, user_id: int, user_data: UserUpdate) -> Optional[User]:
     # Only update fields that are provided
     update_data = user_data.model_dump(exclude_unset=True)
-    return user_repo.update(user_id, update_data)
+    return user_repo.update(db, user_id, update_data)
 
-def delete_user(user_id: int) -> bool:
-    return user_repo.delete(user_id)
+def delete_user(db: Session, user_id: int) -> bool:
+    return user_repo.delete(db, user_id)
