@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from utils.response import error_response
@@ -44,8 +44,12 @@ async def generic_exception_handler(request: Request, exc: Exception):
 app.include_router(user_routes.router)
 app.include_router(auth_routes.router)
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 def home():
-    return {
-        "message": "Welcome to FastAPI"
-    }
+    return """
+    <div style="display: flex; justify-content: center; align-items: center; height: 120vh; font-family: sans-serif;">
+        <marquee direction="left" width="80%">
+            <h1 style="color: #4CAF50;">Welcome to FastAPI</h1>
+        </marquee>
+    </div>
+    """
