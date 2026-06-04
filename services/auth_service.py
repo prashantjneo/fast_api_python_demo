@@ -1,6 +1,6 @@
 import random
 import string
-from passlib.context import CryptContext
+import bcrypt
 from sqlalchemy.orm import Session
 from models.user import User
 from schemas.auth_schema import SignupRequest, LoginRequest, SendOTPRequest
@@ -8,13 +8,18 @@ from datetime import datetime, timedelta
 from jose import jwt
 from config.config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+def get_password_hash(password: str) -> str:
+    pwd_bytes = password.encode('utf-8')
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(pwd_bytes, salt).decode('utf-8')
 
-def get_password_hash(password):
-    return pwd_context.hash(password)
-
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    pwd_bytes = plain_password.encode('utf-8')
+    hashed_bytes = hashed_password.encode('utf-8')
+    try:
+        return bcrypt.checkpw(pwd_bytes, hashed_bytes)
+    except ValueError:
+        return False
 
 def generate_otp(length=6):
     # Returning a hardcoded OTP for easy testing since we have no real email
