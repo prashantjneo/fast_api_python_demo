@@ -3,7 +3,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost/fastapi_demo")
-SECRET_KEY = os.getenv("SECRET_KEY", "supersecretkey12345")
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+DATABASE_URL = os.environ.get("DATABASE_URL")
+SECRET_KEY = os.environ.get("SECRET_KEY")
+ALGORITHM = os.environ.get("ALGORITHM")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES"))
+REFRESH_TOKEN_EXPIRE_DAYS = int(os.environ.get("REFRESH_TOKEN_EXPIRE_DAYS"))

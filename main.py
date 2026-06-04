@@ -7,6 +7,7 @@ from routers import user_routes
 from routers import auth_routes
 from database.connection import engine, Base
 import models.user
+import models.refresh_token
 
 # Create database tables
 Base.metadata.create_all(bind=engine)

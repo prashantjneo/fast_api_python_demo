@@ -3,10 +3,11 @@ import string
 import bcrypt
 from sqlalchemy.orm import Session
 from models.user import User
+from models.refresh_token import RefreshToken
 from schemas.auth_schema import SignupRequest, LoginRequest, SendOTPRequest
 from datetime import datetime, timedelta
-from jose import jwt
-from config.config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
+from jose import jwt, JWTError
+from config.config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS
 
 def get_password_hash(password: str) -> str:
     pwd_bytes = password.encode('utf-8')
@@ -28,7 +29,14 @@ def generate_otp(length=6):
 def create_access_token(data: dict):
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "type": "access"})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def create_refresh_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode.update({"exp": expire, "type": "refresh"})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
@@ -99,4 +107,56 @@ def authenticate_user(db: Session, request: LoginRequest):
         return "not_verified"
         
     access_token = create_access_token(data={"sub": db_user.email})
-    return {"access_token": access_token, "token_type": "bearer"}
+    refresh_token_str = create_refresh_token(data={"sub": db_user.email})
+    
+    expire_date = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    db_refresh_token = RefreshToken(
+        token=refresh_token_str,
+        user_id=db_user.id,
+        expires_at=expire_date
+    )
+    db.add(db_refresh_token)
+    db.commit()
+    
+    return {"access_token": access_token, "refresh_token": refresh_token_str, "token_type": "bearer"}
+
+def refresh_access_token(db: Session, refresh_token: str):
+    try:
+        payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        token_type: str = payload.get("type")
+        if email is None or token_type != "refresh":
+            return None
+            
+        db_token = db.query(RefreshToken).filter(RefreshToken.token == refresh_token).first()
+        if not db_token or db_token.revoked or db_token.expires_at < datetime.utcnow():
+            return None
+            
+        db_user = db.query(User).filter(User.id == db_token.user_id).first()
+        if not db_user:
+            return None
+            
+        access_token = create_access_token(data={"sub": db_user.email})
+        new_refresh_token_str = create_refresh_token(data={"sub": db_user.email})
+        
+        db.delete(db_token)
+        new_expire_date = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+        new_db_token = RefreshToken(
+            token=new_refresh_token_str,
+            user_id=db_user.id,
+            expires_at=new_expire_date
+        )
+        db.add(new_db_token)
+        db.commit()
+        
+        return {"access_token": access_token, "refresh_token": new_refresh_token_str, "token_type": "bearer"}
+    except JWTError:
+        return None
+
+def logout_user(db: Session, refresh_token: str):
+    db_token = db.query(RefreshToken).filter(RefreshToken.token == refresh_token).first()
+    if db_token:
+        db_token.revoked = True
+        db.commit()
+        return True
+    return False
