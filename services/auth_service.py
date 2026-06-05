@@ -156,7 +156,9 @@ def refresh_access_token(db: Session, refresh_token: str):
 def logout_user(db: Session, refresh_token: str):
     db_token = db.query(RefreshToken).filter(RefreshToken.token == refresh_token).first()
     if db_token:
-        db_token.revoked = True
+        # Option A: Global Logout - revoke all tokens for this user
+        user_id = db_token.user_id
+        db.query(RefreshToken).filter(RefreshToken.user_id == user_id).update({"revoked": True})
         db.commit()
         return True
     return False
