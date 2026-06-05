@@ -35,7 +35,9 @@ def create_access_token(data: dict):
 
 def create_refresh_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    # expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    # FOR DEMO PURPOSE: Reduce refresh token time to 2 minutes
+    expire = datetime.utcnow() + timedelta(minutes=2)
     to_encode.update({"exp": expire, "type": "refresh"})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -109,7 +111,9 @@ def authenticate_user(db: Session, request: LoginRequest):
     access_token = create_access_token(data={"sub": db_user.email})
     refresh_token_str = create_refresh_token(data={"sub": db_user.email})
     
-    expire_date = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    # expire_date = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    # FOR DEMO PURPOSE: Reduce refresh token time to 2 minutes
+    expire_date = datetime.utcnow() + timedelta(minutes=2)
     db_refresh_token = RefreshToken(
         token=refresh_token_str,
         user_id=db_user.id,
@@ -140,7 +144,9 @@ def refresh_access_token(db: Session, refresh_token: str):
         new_refresh_token_str = create_refresh_token(data={"sub": db_user.email})
         
         db.delete(db_token)
-        new_expire_date = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+        # new_expire_date = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+        # FOR DEMO PURPOSE: Reduce refresh token time to 2 minutes
+        new_expire_date = datetime.utcnow() + timedelta(minutes=2)
         new_db_token = RefreshToken(
             token=new_refresh_token_str,
             user_id=db_user.id,

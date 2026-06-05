@@ -7,6 +7,7 @@ from utils.response import success_response
 from database.connection import get_db
 from utils.dependencies import get_current_user
 import services.user_service as user_service
+from models.user import User
 
 router = APIRouter(
     prefix="/users",
@@ -17,6 +18,10 @@ router = APIRouter(
 @router.get("/", response_model=APIResponse[List[UserResponse]])
 def get_users(db: Session = Depends(get_db)):
     return success_response(data=user_service.get_all_users(db), message="Users fetched successfully")
+
+@router.get("/profile", response_model=APIResponse[UserResponse])
+def get_profile(current_user: User = Depends(get_current_user)):
+    return success_response(data=current_user, message="User profile fetched successfully")
 
 @router.get("/{user_id}", response_model=APIResponse[UserResponse])
 def get_user(user_id: int, db: Session = Depends(get_db)):
