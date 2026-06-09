@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from config.config import SECRET_KEY, ALGORITHM
 from database.connection import get_db
 from models.user import User
+from models.refresh_token import RefreshToken
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
@@ -25,4 +26,15 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     user = db.query(User).filter(User.email == email).first()
     if user is None:
         raise credentials_exception
+        
+    # Check if the user has been globally logged out (all sessions revoked)
+    # This ensures that access tokens become instantly invalid upon global logout
+    active_session = db.query(RefreshToken).filter(
+        RefreshToken.user_id == user.id,
+        RefreshToken.revoked == False
+    ).first()
+    
+    if not active_session:
+        raise credentials_exception
+        
     return user
